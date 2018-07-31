@@ -1,6 +1,7 @@
 import random
 
 from . import cards
+from . import nobles
 
 colors = 'kwrgb'
 
@@ -11,10 +12,13 @@ class Player(object):
         self.bonus = {c:0 for c in colors}
         self.cards = []
         self.reserve = []
+        self.nobles = []
         self.points = 0
 
     def can_draw_three(self, **kwargs):
         if self.game.players[self.game.current_player] is not self:
+            return False
+        if self.game.must_select_noble:
             return False
         if sum(kwargs.values()) > 3:
             return False
@@ -35,6 +39,8 @@ class Player(object):
     def can_draw_two(self, color):
         if self.game.players[self.game.current_player] is not self:
             return False
+        if self.game.must_select_noble:
+            return False
         if self.game.chips[color] < 4:
             return False
         return True
@@ -46,6 +52,10 @@ class Player(object):
         self.game.end_turn()
 
     def can_reserve_card(self, card):
+        if self.game.players[self.game.current_player] is not self:
+            return False
+        if self.game.must_select_noble:
+            return False
         if len(self.reserve) >= 3:
             return False
         if not self.game.is_in_tableau(card):
@@ -59,6 +69,10 @@ class Player(object):
         self.game.end_turn()
 
     def can_play(self, card):
+        if self.game.players[self.game.current_player] is not self:
+            return False
+        if self.game.must_select_noble:
+            return False
         if not self.game.is_in_tableau(card) and card not in self.reserve:
             return False
         for c in colors:
@@ -79,12 +93,51 @@ class Player(object):
             self.chips[c] -= min(cost - self.bonus[c], 0)
         self.bonus[card.bonus] += 1
         self.points += card.points
+        self.check_nobles()
         if self.points >= 15:
             self.game.end_game = True
         self.game.end_turn()
 
+    def check_nobles(self):
+        my_nobles = []
+        for n in self.game.nobles:
+            for c in colors:
+                if getattr(n, c) > self.bonus[c]:
+                    break
+            else:
+                my_nobles.append(n)
+        if len(my_nobles) == 1:
+            self.nobles.append(n)
+            self.game.nobles.remove(n)
+            self.points += n.points
+        elif len(my_nobles) > 1:
+            self.game.must_select_noble = True
+            self.game.selectable_nobles = my_nobles
+
+    def can_select_noble(self, noble):
+        if self.game.players[self.game.current_player] is not self:
+            return False
+        if not self.game.must_select_noble:
+            return False
+        if noble not in self.game.selectable_nobles:
+            return False
+        return True
+
+    def select_noble(self, noble):
+        assert self.can_select_noble(noble)
+        self.nobles.append(noble)
+        self.points += noble.points
+        self.game.nobles.remove(noble)
+        self.game.must_select_noble = False
+        self.game.selectable_nobles = None
+
     def valid_actions(self):
         actions = []
+        if self.game.must_select_noble:
+            for n in self.game.selectable_nobles:
+                actions.append((self.select_noble, dict(noble=n)))
+            return actions
+
         for level in [3, 2, 1]:
             for card in self.game.tableau[level]:
                 if card is not None:
@@ -126,6 +179,11 @@ class Splendor(object):
         for level in [1, 2, 3]:
             self.levels[level] = [x for x in all_cards if x.level==level]
             self.tableau[level] = [self.draw(level) for j in range(4)]
+
+        all_nobles = nobles.generate()
+        rng.shuffle(all_nobles)
+        self.nobles = all_nobles[:n_players+1]
+        self.must_select_noble = False
 
         self.first_player = rng.randrange(n_players)
         self.current_player = self.first_player
