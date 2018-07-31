@@ -66,6 +66,9 @@ class Player(object):
         assert self.can_reserve_card(card)
         self.reserve.append(card)
         self.game.remove_card(card)
+        if self.game.chips['x'] > 0:
+            self.game.chips['x'] -= 1
+            self.chips['x'] += 1
         self.game.end_turn()
 
     def can_play(self, card):
@@ -75,10 +78,13 @@ class Player(object):
             return False
         if not self.game.is_in_tableau(card) and card not in self.reserve:
             return False
+        extra_needed = 0
         for c in colors:
             cost = getattr(card, c)
             if self.chips[c] + self.bonus[c] < cost:
-                return False
+                extra_needed += cost - (self.chips[c] - self.bonus[c])
+        if extra_needed > self.chips['x']:
+            return False
         return True
 
     def play(self, card):
@@ -91,6 +97,9 @@ class Player(object):
         for c in colors:
             cost = getattr(card, c)
             self.chips[c] -= min(cost - self.bonus[c], 0)
+            if self.chips[c] < 0:
+                self.chips['x'] += self.chips[c]
+                self.chips[c] = 0
         self.bonus[card.bonus] += 1
         self.points += card.points
         self.check_nobles()
@@ -138,7 +147,7 @@ class Player(object):
                 actions.append((self.select_noble, dict(noble=n)))
             return actions
 
-        for level in [3, 2, 1]:
+        for level in [1, 2, 3]:
             for card in self.game.tableau[level]:
                 if card is not None:
                     if self.can_play(card):
@@ -146,14 +155,14 @@ class Player(object):
         for card in self.reserve:
             if self.can_play(card):
                 actions.append((self.play, dict(card=card)))
-        for c1 in colors:
+        for i, c1 in enumerate(colors):
             if self.game.chips[c1] == 0:
                 continue
-            for c2 in colors:
-                if c1 == c2 or self.game.chips[c2] == 0:
+            for j, c2 in enumerate(colors[i+1:]):
+                if self.game.chips[c2] == 0:
                     continue
-                for c3 in colors:
-                    if c1 == c3 or c2 == c3 or self.game.chips[c3] == 0:
+                for c3 in colors[i+j+2:]:
+                    if self.game.chips[c3] == 0:
                         continue
                     actions.append((self.draw_three, {c1:1, c2:1, c3:1}))
         for c in colors:
