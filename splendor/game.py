@@ -96,9 +96,12 @@ class Player(object):
             self.game.remove_card(card)
         for c in colors:
             cost = getattr(card, c)
-            self.chips[c] -= min(cost - self.bonus[c], 0)
+            self.chips[c] -= max(cost - self.bonus[c], 0)
+            self.game.chips[c] += max(cost - self.bonus[c], 0)
             if self.chips[c] < 0:
                 self.chips['x'] += self.chips[c]
+                self.game.chips[c] += self.chips[c]
+                self.game.chips['x'] -= self.chips[c]
                 self.chips[c] = 0
         self.bonus[card.bonus] += 1
         self.points += card.points
