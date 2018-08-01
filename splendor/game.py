@@ -119,6 +119,7 @@ class Player(object):
             else:
                 my_nobles.append(n)
         if len(my_nobles) == 1:
+            n = my_nobles[0]
             self.nobles.append(n)
             self.game.nobles.remove(n)
             self.points += n.points
