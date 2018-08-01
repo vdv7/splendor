@@ -85,27 +85,45 @@ def text_action(func, args):
     else:
         return name, args
 
-def run(n_players, seed=None):
-    game = splendor.Splendor(n_players=n_players, seed=seed)
+def run(n_players, n_random=0, seed=None):
+    types = ['player']*n_players + ['random']*n_random
+    random.shuffle(types)
+    game = splendor.Splendor(n_players=len(types), seed=seed)
+
+    last_actions = []
 
     while game.winners is None:
-        print(text_game_state(game))
 
         p = game.players[game.current_player]
         actions = p.valid_actions()
 
-        if len(actions) == 0:
-            game.pass_turn()
-        else:
-            for i, action in enumerate(actions):
-                print('%3d: %s' % (i, text_action(*action)))
-            choice = input('>>')
-            if choice == 'r':
-                c = random.randrange(len(actions))
-            else:
-                c = int(choice)
+        if types[game.current_player] == 'player':
+            while True:
+                print('\n'.join(last_actions))
+                print(text_game_state(game))
+
+                if len(actions) == 0:
+                    game.pass_turn()
+                else:
+                    for i, action in enumerate(actions):
+                        print('%3d: %s' % (i, text_action(*action)))
+                    choice = input('>>')
+                    try:
+                        c = int(choice)
+                        if 0 <= c < len(actions):
+                            break
+                    except:
+                        pass
             func, args = actions[c]
             func(**args)
+            last_actions = []
+        elif types[game.current_player] == 'random':
+            c = random.randrange(len(actions))
+            func, args = actions[c]
+            last_actions.append('P%d: %s' % (game.current_player, text_action(func, args)))
+            func(**args)
+
+
 
     print(text_game_state(game))
 
@@ -113,8 +131,9 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description='Splendor')
     parser.add_argument('--n_players', type=int, default=2, help='number of players')
+    parser.add_argument('--n_random', type=int, default=2, help='number of random AI players')
     parser.add_argument('--seed', type=int, default=None, help='random number seed')
     args = parser.parse_args()
 
-    run(args.n_players, args.seed)
+    run(n_players=args.n_players, n_random=args.n_random, seed=args.seed)
 
