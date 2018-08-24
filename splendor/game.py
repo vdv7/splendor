@@ -5,6 +5,9 @@ from . import nobles
 
 colors = 'kwrgb'
 
+MAX_RESERVED=3
+
+
 class Player(object):
     def __init__(self, game):
         self.game = game
@@ -56,7 +59,7 @@ class Player(object):
             return False
         if self.game.must_select_noble:
             return False
-        if len(self.reserve) >= 3:
+        if len(self.reserve) >= MAX_RESERVED:
             return False
         if not self.game.is_in_tableau(card):
             return False
@@ -215,6 +218,7 @@ class Splendor(object):
 
     def is_in_tableau(self, card):
         for level in [1, 2, 3]:
+            #if card in [list(c) for c in self.tableau[level]]:
             if card in self.tableau[level]:
                 return True
         return False
@@ -243,16 +247,4 @@ class Splendor(object):
             max_points = max([p.points for p in self.players])
             self.winners = [p for p in self.players if p.points == max_points]
             self.current_player = None
-
-
-
-
-
-
-
-
-
-
-        
-
 
