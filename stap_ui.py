@@ -15,7 +15,6 @@ STAP_COLORS=dict(zip(COLORS+'x',[2,3,4,5,6,7]))
 
 RESERVE='RESERVE'
 BUY='BUY'
-DRAW_CHIPS='DRAW CHIPS'
 DRAW2='DRAW TWO OF A SINGLE COLOR'
 DRAW3='DRAW THREE DIFFERENT COLORS'
 
@@ -33,8 +32,19 @@ TEMPLATE='''
 * {font-family:arial narrow}
 [v] > div {vertical-align:top}
 [level="2"]{display:inline-block}
+[id="Public Chips"] [level="2"]{margin-left:15px;vertical-align:middle}
 [id="Public Cards"] [level="2"]{display:block}
 [id="Public Cards"] [level="3"]{display:inline-block;}
+[type='container'][select] > [v] {display:inline-block;}
+[type="boolean"][select="-1"]{
+	font-family:impact;
+	font-size:11pt;
+	min-width:0px;
+	padding:2px;
+	background:none;
+	box-shadow:none;
+	color:black;
+}
 #Nobles [level="2"]{border:solid 1px lightgray;border-radius:5px}
 .chip {
 	font-size:10pt;
@@ -48,15 +58,6 @@ TEMPLATE='''
 }
 .production {display:inline-block;border-radius:3px;border:solid 1px lightgray}
 .card {width:10em;border-radius:5px}
-[type="boolean"][select="-1"]{
-	font-family:impact;
-	font-size:11pt;
-	min-width:0px;
-	padding:2px;
-	background:none;
-	box-shadow:none;
-	color:black;
-}
 .actions {position:absolute;top:0px;right:0px}
 .actions [type="boolean"] {display:block}
 '''
@@ -89,15 +90,16 @@ def text_game_state(game,player,buyable=[],draw2=[],draw3=[]):
 	reserve=game.players[player].reserve
 	allowReserve=len(reserve)<splendor.game.MAX_RESERVED and player==game.current_player
 	cardRows=[]
-	for level in [1,2,3]:
+	for level in [3,2,1]:
 		cardRows.append([text_card(c,c in buyable,allowReserve) for c in game.tableau[level]])
 	if reserve: screen.append({"id":"My Reserved Cards","v":[text_card(c,c in buyable) for c in reserve]})
 	screen.append({"id":"Public Cards","v":cardRows})
 	#chips
-	chips=[]
-	if draw3 or draw2: chips.append({'id':DRAW_CHIPS,'v':False})
-	chips+=[text_chip(c,game.chips[c]) for c in COLORS+'x' if game.chips[c]]
-	screen.append({"id":"Public Chips","v":chips})
+	chips=[text_chip('x',game.chips['x'])]
+	#if draw3 or draw2: chips.append({'id':DRAW_CHIPS,'v':False})
+	#chips+=[{'id':c,'v':[False,text_chip(c,game.chips[c])]} for c in COLORS+'x' if game.chips[c]]
+	chips+=[{'id':c,'title':'','v':[False,text_chip(c,game.chips[c])]} for c in COLORS if game.chips[c]]
+	screen.append({"id":"Public Chips","v":chips,'select':2})
 	#nobles
 	screen.append({"id":"Nobles","v":[text_noble(n) for n in game.nobles]})
 	return screen
@@ -154,10 +156,11 @@ def run(n_players, n_random=0, seed=None):
 				for func,args in actions:
 					if func.__name__=='draw_three':
 						draw3.append({'v':[text_chip(c) for c in args.keys()],'e':[40]})
-						input2action[(DRAW3,len(draw3)-1)]=func,args
+						colors=sorted(args)
+						input2action[(DRAW3,tuple(colors))]=func,args
 					elif func.__name__=='draw_two':
 						draw2.append({'v':[text_chip(args['color']),text_chip(args['color'])],'e':[40]})
-						input2action[(DRAW2,len(draw2)-1)]=func,args
+						input2action[(DRAW2,args['color'])]=func,args
 					elif func.__name__=='reserve_card':
 						input2action[(json.dumps(args['card']),RESERVE)]=func,args
 					elif func.__name__=='play':
@@ -169,14 +172,30 @@ def run(n_players, n_random=0, seed=None):
 				#screen.append({"id":"last actions","v":last_actions})
 				ui(None)
 				ui(screen)
+				selectedColors={}
 				while True:
-					choice=input()
 					try:
-						c=tuple(json.loads(choice)[1])
+						choice=json.loads(input())
+						c=tuple(choice[1])
 						if c in input2action:
 							break
-						elif c[-1]==DRAW_CHIPS:
-							ui([{'type':'popup','v':[{'id':DRAW3,'v':draw3},{'id':DRAW2,'v':draw2}]}])
+						elif c[-1]==DRAW2:
+							c=(DRAW2,list(selectedColors.keys())[0])
+							break
+						elif c[-1]==DRAW3:
+							c=(DRAW3,tuple(sorted(selectedColors)))
+							break
+						elif c[0] in COLORS:
+							selectedColors[c[0]]=choice[-1]
+							selectedColors={k:v for k,v in selectedColors.items() if v}
+							if len(selectedColors)==1 and (DRAW2,list(selectedColors.keys())[0]) in input2action:
+								ui([{'$':'Public Chips','v':[{'id':DRAW2,'v':False,'select':-1}]}])
+							else:
+								ui([{'$':'Public Chips','v':[{'id':DRAW2,'v':None}]}])
+							if len(selectedColors)==3:
+								ui([{'$':'Public Chips','v':[{'id':DRAW3,'v':False,'select':-1}]}])
+							else:
+								ui([{'$':'Public Chips','v':[{'id':DRAW3,'v':None}]}])
 					except Exception as e:
 						err(repr(e))
 				func, args = input2action[c]
