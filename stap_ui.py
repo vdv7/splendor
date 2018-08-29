@@ -31,10 +31,10 @@ TEMPLATE='''
 * {font-family:arial narrow}
 [v] > div {vertical-align:top}
 [level="2"]{display:inline-block}
-[id="Public Chips"] [level="2"]{margin-left:15px;vertical-align:middle}
 [id="Public Cards"] [level="2"]{display:block}
 [id="Public Cards"] [level="3"]{display:inline-block;}
-[type='container'][select] > [v] {display:inline-block;}
+[id="Public Chips"] [level="2"]{margin-left:15px;vertical-align:middle}
+[id="Public Chips"] [level="3"]{display:inline-block;}
 [type="boolean"][select="-1"]{
 	font-family:impact;
 	font-size:11pt;
