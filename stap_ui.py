@@ -1,6 +1,5 @@
 #Splendor STAP interface
 
-#TODO: deal w/ nobles; get rid of 40 event, use checkboxes with buttons instead (and add cancel button)
 
 
 import random,json
